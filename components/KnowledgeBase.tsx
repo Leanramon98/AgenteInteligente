@@ -66,13 +66,21 @@ export function KnowledgeBase({ agentId }: { agentId: string }) {
     if (!agentId || !db) return;
 
     // Listen for Documents
-    const qDocs = query(collection(db, "kb_documents"), where("agentId", "==", agentId));
+    const qDocs = query(
+      collection(db, "kb_documents"), 
+      where("agentId", "==", agentId),
+      where("userId", "==", user.uid)
+    );
     const unsubDocs = onSnapshot(qDocs, (snap) => {
       setDocuments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Document)));
     });
 
     // Listen for FAQs
-    const qFaqs = query(collection(db, "kb_faqs"), where("agentId", "==", agentId));
+    const qFaqs = query(
+      collection(db, "kb_faqs"), 
+      where("agentId", "==", agentId),
+      where("userId", "==", user.uid)
+    );
     const unsubFaqs = onSnapshot(qFaqs, (snap) => {
       setFaqs(snap.docs.map(d => ({ id: d.id, ...d.data() } as FAQ)));
     });
@@ -176,6 +184,7 @@ export function KnowledgeBase({ agentId }: { agentId: string }) {
       // 2. Save to Firestore
       await addDoc(collection(db, "kb_faqs"), {
         agentId,
+        userId: user.uid,
         question: newQuestion,
         answer: newAnswer,
         embedding,

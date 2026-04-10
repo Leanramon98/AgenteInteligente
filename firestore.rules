@@ -9,18 +9,18 @@ service cloud.firestore {
     }
 
     match /agents/{agentId} {
-      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
 
     match /kb_documents/{docId} {
-      allow read, write: if request.auth != null && isOwner(request.resource.data.agentId || resource.data.agentId);
-      allow create: if request.auth != null && isOwner(request.resource.data.agentId);
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid && isOwner(request.resource.data.agentId);
     }
 
     match /kb_faqs/{faqId} {
-      allow read, write: if request.auth != null && isOwner(request.resource.data.agentId || resource.data.agentId);
-      allow create: if request.auth != null && isOwner(request.resource.data.agentId);
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid && isOwner(request.resource.data.agentId);
     }
     
     match /kb_chunks/{chunkId} {
@@ -29,12 +29,13 @@ service cloud.firestore {
     }
 
     match /conversations/{convId} {
-      allow read, write: if request.auth != null && (resource == null || resource.data.userId == request.auth.uid);
+      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
 
     match /messages/{msgId} {
       allow read: if true;
-      allow create: if true; // Allow guests to message if needed, or restrict later
+      allow create: if true;
     }
   }
 }
