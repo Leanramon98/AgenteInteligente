@@ -19,8 +19,8 @@ const app = getApps().length > 0
       ? initializeApp(firebaseConfig) 
       : null);
 
-const auth = app ? getAuth(app) : null;
-const db = app ? getFirestore(app) : null;
-const storage = app ? getStorage(app) : null;
+const auth = (app ? getAuth(app) : null) as any;
+const db = (app ? getFirestore(app) : null) as any;
+const storage = (app ? getStorage(app) : null) as any;
 
 export { app, auth, db, storage };
