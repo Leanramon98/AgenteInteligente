@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getOpenAIInstance } from "@/lib/openai";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, limit } from "firebase/firestore";
+import { adminDb } from "@/lib/firebaseAdmin";
 
 const openai = getOpenAIInstance();
 
@@ -14,14 +13,10 @@ export async function POST(req: Request) {
     }
 
     // 1. Get some context from the KB
-    // Use the first 10 chunks to get a sample of the knowledge
-    const chunksSnap = await getDocs(
-      query(
-        collection(db, "kb_chunks"), 
-        where("agentId", "==", agentId),
-        limit(20)
-      )
-    );
+    const chunksSnap = await adminDb.collection("kb_chunks")
+      .where("agentId", "==", agentId)
+      .limit(20)
+      .get();
 
     const context = chunksSnap.docs.map(doc => doc.data().content).join("\n\n");
 

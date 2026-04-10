@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { collection, query, where, onSnapshot, addDoc, updateDoc, doc, serverTimestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
@@ -34,6 +35,7 @@ interface Channel {
 }
 
 export function ChannelsManager({ agentId }: { agentId: string }) {
+  const { user } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -75,6 +77,7 @@ export function ChannelsManager({ agentId }: { agentId: string }) {
       } else {
         await addDoc(collection(db, "channels"), {
           agentId,
+          userId: user?.uid,
           type: "whatsapp_twilio",
           config,
           isActive: true,

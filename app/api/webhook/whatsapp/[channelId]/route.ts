@@ -1,20 +1,8 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/firebase";
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  doc, 
-  getDoc, 
-  addDoc, 
-  serverTimestamp, 
-  updateDoc,
-  limit,
-  orderBy
-} from "firebase/firestore";
+import { adminDb } from "@/lib/firebaseAdmin";
 import { getRAGResponse } from "@/lib/rag";
 import twilio from "twilio";
+import * as admin from "firebase-admin";
 
 export async function POST(req: Request, { params }: { params: { channelId: string } }) {
   try {
@@ -28,59 +16,59 @@ export async function POST(req: Request, { params }: { params: { channelId: stri
     if (!from || !body) return new Response("Missing data", { status: 400 });
 
     // 1. Get Channel
-    const channelRef = doc(db, "channels", channelId);
-    const channelSnap = await getDoc(channelRef);
-    if (!channelSnap.exists() || !channelSnap.data().isActive) {
+    const channelSnap = await adminDb.collection("channels").doc(channelId).get();
+    if (!channelSnap.exists || !channelSnap.data()?.isActive) {
       console.error("Channel not found or inactive:", channelId);
       return new Response("Channel inactive", { status: 404 });
     }
-    const channelData = channelSnap.data();
+    const channelData = channelSnap.data() || {};
     const agentId = channelData.agentId;
 
     // 2. Find or Create Conversation
-    const convQuery = query(
-      collection(db, "conversations"), 
-      where("agentId", "==", agentId),
-      where("externalUserId", "==", from),
-      limit(1)
-    );
-    const convSnap = await getDocs(convQuery);
+    const convSnap = await adminDb.collection("conversations")
+      .where("agentId", "==", agentId)
+      .where("externalUserId", "==", from)
+      .limit(1)
+      .get();
     
     let conversationId = "";
     if (convSnap.empty) {
-      const newConv = await addDoc(collection(db, "conversations"), {
+      // Get userId from the channel or agent
+      const userId = channelData.userId || (await adminDb.collection("agents").doc(agentId).get()).data()?.userId;
+
+      const newConv = await adminDb.collection("conversations").add({
         agentId,
+        userId, // Critical for rules!
         channelId,
         externalUserId: from,
         status: "active",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
       conversationId = newConv.id;
     } else {
       conversationId = convSnap.docs[0].id;
-      await updateDoc(doc(db, "conversations", conversationId), {
-        updatedAt: serverTimestamp()
+      await adminDb.collection("conversations").doc(conversationId).update({
+        updatedAt: admin.firestore.FieldValue.serverTimestamp()
       });
     }
 
     // 3. Save User Message
-    await addDoc(collection(db, "messages"), {
+    await adminDb.collection("messages").add({
       conversationId,
       agentId,
       role: "user",
       content: body,
-      createdAt: serverTimestamp()
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
     // 4. Get History (last 10)
-    const historyQuery = query(
-      collection(db, "messages"),
-      where("conversationId", "==", conversationId),
-      orderBy("createdAt", "desc"),
-      limit(10)
-    );
-    const historySnap = await getDocs(historyQuery);
+    const historySnap = await adminDb.collection("messages")
+      .where("conversationId", "==", conversationId)
+      .orderBy("createdAt", "desc")
+      .limit(10)
+      .get();
+    
     const history = historySnap.docs
       .map(d => ({ role: d.data().role, content: d.data().content }))
       .reverse();
@@ -89,24 +77,23 @@ export async function POST(req: Request, { params }: { params: { channelId: stri
     const { answer, sources, usedFallback } = await getRAGResponse(agentId, body, history.slice(0, -1));
 
     // 6. Save Assistant Message
-    await addDoc(collection(db, "messages"), {
+    await adminDb.collection("messages").add({
       conversationId,
       agentId,
       role: "assistant",
       content: answer,
       metadata: { sources, usedFallback },
-      createdAt: serverTimestamp()
+      createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
     // 7. Send via Twilio
     const client = twilio(channelData.config.accountSid, channelData.config.authToken);
     
-    // Twilio limit is 1600 chars. We split if needed (basic split)
     const messagesToSend = answer?.match(/.{1,1500}/g) || [answer];
 
     for (const msg of messagesToSend) {
       await client.messages.create({
-        from: channelData.config.phoneNumber, // e.g. 'whatsapp:+14155238886'
+        from: channelData.config.phoneNumber,
         to: from,
         body: msg || ""
       });

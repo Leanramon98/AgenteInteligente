@@ -1,18 +1,16 @@
 import { getOpenAIInstance } from "@/lib/openai";
-import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
+import { adminDb } from "@/lib/firebaseAdmin";
 import { cosineSimilarity } from "@/lib/similarity";
 
 const openai = getOpenAIInstance();
 
 export async function getRAGResponse(agentId: string, message: string, conversationHistory: any[]) {
   // 1. Get Agent Config
-  const agentRef = doc(db, "agents", agentId);
-  const agentSnap = await getDoc(agentRef);
-  if (!agentSnap.exists()) {
+  const agentSnap = await adminDb.collection("agents").doc(agentId).get();
+  if (!agentSnap.exists) {
     throw new Error("Agent not found");
   }
-  const agent = agentSnap.data();
+  const agent = agentSnap.data() || {};
 
   // 2. Generate Embedding
   const embeddingRes = await openai.embeddings.create({
@@ -23,20 +21,22 @@ export async function getRAGResponse(agentId: string, message: string, conversat
 
   // 3. Search Chunks and FAQs
   const [chunksSnap, faqsSnap] = await Promise.all([
-    getDocs(query(collection(db, "kb_chunks"), where("agentId", "==", agentId))),
-    getDocs(query(collection(db, "kb_faqs"), where("agentId", "==", agentId)))
+    adminDb.collection("kb_chunks").where("agentId", "==", agentId).get(),
+    adminDb.collection("kb_faqs").where("agentId", "==", agentId).get()
   ]);
 
   const results: any[] = [];
   chunksSnap.forEach(d => {
-    const sim = cosineSimilarity(queryEmbedding, d.data().embedding);
-    if (sim > 0.75) results.push({ content: d.data().content, similarity: sim, source: d.data().metadata?.fileName || "Doc" });
+    const data = d.data();
+    const sim = cosineSimilarity(queryEmbedding, data.embedding);
+    if (sim > 0.75) results.push({ content: data.content, similarity: sim, source: data.metadata?.fileName || "Doc" });
   });
 
   faqsSnap.forEach(d => {
-    const sim = cosineSimilarity(queryEmbedding, d.data().embedding);
+    const data = d.data();
+    const sim = cosineSimilarity(queryEmbedding, data.embedding);
     if (sim > 0.75) results.push({ 
-      content: `P: ${d.data().question}\nR: ${d.data().answer}`, 
+      content: `P: ${data.question}\nR: ${data.answer}`, 
       similarity: sim, 
       source: "FAQ" 
     });
