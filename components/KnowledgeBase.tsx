@@ -63,7 +63,7 @@ export function KnowledgeBase({ agentId }: { agentId: string }) {
   const [generatingAi, setGeneratingAi] = useState(false);
 
   useEffect(() => {
-    if (!agentId || !db) return;
+    if (!agentId || !db || !user) return;
 
     // Listen for Documents
     const qDocs = query(
