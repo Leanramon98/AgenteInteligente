@@ -167,7 +167,7 @@ export function KnowledgeBase({ agentId }: { agentId: string }) {
 
   const handleSaveFaq = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newQuestion || !newAnswer || !db) return;
+    if (!newQuestion || !newAnswer || !db || !user) return;
 
     setSavingFaq(true);
     try {
