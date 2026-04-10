@@ -333,7 +333,7 @@ export function KnowledgeBase({ agentId }: { agentId: string }) {
               </div>
               <h3 className="text-lg font-black tracking-tight">Cargar Cerebro</h3>
               <p className="text-xs text-muted-foreground font-medium mt-2 leading-relaxed">
-                Arrastra aquí tus manuales PDF o archivos TXT.<br /><span className="font-bold opacity-60">Límite: 100MB por archivo (v2.1)</span>
+                Arrastra aquí tus manuales PDF o archivos TXT.<br /><span className="font-bold opacity-60">Límite: 100MB por archivo (v2.5 SL)</span>
               </p>
             </div>
 
