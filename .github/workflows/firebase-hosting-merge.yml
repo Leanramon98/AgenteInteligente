@@ -1,0 +1,36 @@
+name: Deploy to Firebase on merge
+'on':
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          
+      - name: Install Project Dependencies
+        run: npm ci
+        
+      - name: Build Next.js
+        run: npm run build
+        
+      - name: Install Functions Dependencies
+        run: |
+          if [ -d "functions" ]; then
+            cd functions && npm ci
+          fi
+        
+      - name: Deploy to Firebase
+        uses: w9jds/firebase-action@v11.23.0
+        with:
+          args: deploy --non-interactive
+        env:
+          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_AGENTEHUB_E5BF7 }}
+          FIREBASE_CLI_EXPERIMENTS: webframeworks
