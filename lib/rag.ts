@@ -1,11 +1,9 @@
-import OpenAI from "openai";
+import { getOpenAIInstance } from "@/lib/openai";
 import { db } from "@/lib/firebase";
 import { collection, query, where, getDocs, doc, getDoc } from "firebase/firestore";
 import { cosineSimilarity } from "@/lib/similarity";
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+const openai = getOpenAIInstance();
 
 export async function getRAGResponse(agentId: string, message: string, conversationHistory: any[]) {
   // 1. Get Agent Config
