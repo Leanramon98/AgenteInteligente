@@ -30,7 +30,7 @@ jobs:
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@master
         with:
-          args: deploy --non-interactive
+          args: deploy --non-interactive --force
         env:
           GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_AGENTEHUB_E5BF7 }}
           FIREBASE_CLI_EXPERIMENTS: webframeworks
