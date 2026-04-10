@@ -152,11 +152,13 @@ export default function DashboardLayout({
           <div className="flex items-center gap-4">
             <div className="lg:hidden">
               <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
-                <SheetTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-xl border bg-white/50 backdrop-blur-sm">
-                    <Menu size={20} />
-                  </Button>
-                </SheetTrigger>
+                <SheetTrigger 
+                  render={
+                    <Button variant="ghost" size="icon" className="rounded-xl border bg-white/50 backdrop-blur-sm">
+                      <Menu size={20} />
+                    </Button>
+                  }
+                />
                 <SheetContent side="left" className="p-0 w-72 border-r-0">
                   <SidebarContent />
                 </SheetContent>
