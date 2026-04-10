@@ -30,13 +30,13 @@ export async function getRAGResponse(agentId: string, message: string, conversat
   ]);
 
   const results: any[] = [];
-  chunksSnap.forEach(d => {
+  chunksSnap.forEach((d: any) => {
     const data = d.data();
     const sim = cosineSimilarity(queryEmbedding, data.embedding);
     if (sim > 0.75) results.push({ content: data.content, similarity: sim, source: data.metadata?.fileName || "Doc" });
   });
 
-  faqsSnap.forEach(d => {
+  faqsSnap.forEach((d: any) => {
     const data = d.data();
     const sim = cosineSimilarity(queryEmbedding, data.embedding);
     if (sim > 0.75) results.push({ 
