@@ -22,7 +22,7 @@ export async function POST(req: Request) {
       .limit(20)
       .get();
 
-    const context = chunksSnap.docs.map(doc => doc.data().content).join("\n\n");
+    const context = chunksSnap.docs.map((doc: any) => doc.data().content).join("\n\n");
 
     if (!context) {
       return NextResponse.json({ error: "No knowledge found to generate FAQs. Please upload documents first." }, { status: 404 });

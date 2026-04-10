@@ -75,7 +75,7 @@ export async function POST(req: Request, { params }: { params: { channelId: stri
       .get();
     
     const history = historySnap.docs
-      .map(d => ({ role: d.data().role, content: d.data().content }))
+      .map((d: any) => ({ role: d.data().role, content: d.data().content }))
       .reverse();
 
     // 5. RAG Response
