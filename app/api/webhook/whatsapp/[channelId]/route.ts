@@ -15,6 +15,11 @@ export async function POST(req: Request, { params }: { params: { channelId: stri
     
     if (!from || !body) return new Response("Missing data", { status: 400 });
 
+    if (!adminDb) {
+      console.error("Admin SDK not initialized in webhook");
+      return new Response("Server error", { status: 500 });
+    }
+
     // 1. Get Channel
     const channelSnap = await adminDb.collection("channels").doc(channelId).get();
     if (!channelSnap.exists || !channelSnap.data()?.isActive) {

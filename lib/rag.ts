@@ -5,6 +5,10 @@ import { cosineSimilarity } from "@/lib/similarity";
 const openai = getOpenAIInstance();
 
 export async function getRAGResponse(agentId: string, message: string, conversationHistory: any[]) {
+  if (!adminDb) {
+     throw new Error("El sistema de IA no está configurado (Faltan variables SERVICE_ en el servidor).");
+  }
+
   // 1. Get Agent Config
   const agentSnap = await adminDb.collection("agents").doc(agentId).get();
   if (!agentSnap.exists) {

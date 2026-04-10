@@ -12,6 +12,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "agentId is required" }, { status: 400 });
     }
 
+    if (!adminDb) {
+      return NextResponse.json({ error: "Server credentials missing" }, { status: 500 });
+    }
+
     // 1. Get some context from the KB
     const chunksSnap = await adminDb.collection("kb_chunks")
       .where("agentId", "==", agentId)
