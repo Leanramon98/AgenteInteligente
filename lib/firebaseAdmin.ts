@@ -15,7 +15,6 @@ const initAdmin = () => {
   try {
     return admin.initializeApp({
       credential: admin.credential.cert({
-        apiKey: projectId, // Some versions of firebase-admin require this or use it
         projectId,
         clientEmail,
         // Remove quotes and handle both literal and escaped newlines
