@@ -14,7 +14,14 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "dummy",
 });
 
-export const processAgentDocument = onDocumentCreated("kb_documents/{docId}", async (event) => {
+// Configure options for large files
+const processOptions = {
+  memory: "1GiB" as const,
+  timeoutSeconds: 540,
+  region: "us-central1"
+};
+
+export const processAgentDocument = onDocumentCreated(processOptions, "kb_documents/{docId}", async (event) => {
   const snap = event.data;
   if (!snap) return;
   
@@ -33,7 +40,6 @@ export const processAgentDocument = onDocumentCreated("kb_documents/{docId}", as
     const [buffer] = await file.download();
 
     let text = "";
-
     if (type === "pdf") {
       const pdfData = await pdf(buffer);
       text = pdfData.text;
@@ -43,48 +49,58 @@ export const processAgentDocument = onDocumentCreated("kb_documents/{docId}", as
 
     if (!text) throw new Error("Extract failed");
 
-    const chunks = chunkText(text, 2000, 200);
-    const batch = db.batch();
+    // Chunk text into smaller pieces
+    const chunks = chunkText(text, 1000, 100);
     
-    for (let i = 0; i < chunks.length; i++) {
-      const chunkContent = chunks[i] as string;
+    // Batch processing of embeddings (OpenAI allows up to 2048 inputs per request)
+    const BATCH_SIZE = 50; 
+    let processedChunks = 0;
+
+    for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+      const currentBatch = chunks.slice(i, i + BATCH_SIZE);
       
       const embeddingResponse = await openai.embeddings.create({
         model: "text-embedding-3-small",
-        input: chunkContent,
+        input: currentBatch,
       });
 
-      const embedding = embeddingResponse.data[0]?.embedding;
-      if (!embedding) continue;
-
-      const chunkRef = db.collection("kb_chunks").doc();
+      const writeBatch = db.batch();
       
-      batch.set(chunkRef, {
-        documentId: docId as string,
-        agentId: agentId as string,
-        content: chunkContent,
-        embedding,
-        metadata: {
-          fileName: (name as string) || "unknown",
-          chunkIndex: i
-        },
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      embeddingResponse.data.forEach((embData, index) => {
+        const chunkIndex = i + index;
+        const chunkContent = currentBatch[index];
+        const chunkRef = db.collection("kb_chunks").doc();
+        
+        writeBatch.set(chunkRef, {
+          documentId: docId,
+          agentId: agentId,
+          content: chunkContent,
+          embedding: embData.embedding,
+          metadata: {
+            fileName: name || "unknown",
+            chunkIndex
+          },
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
       });
 
-      if ((i + 1) % 400 === 0) {
-        await batch.commit();
-      }
+      await writeBatch.commit();
+      processedChunks += currentBatch.length;
+      
+      // Update progress in the main document periodically
+      await snap.ref.update({
+        progress: Math.round((processedChunks / chunks.length) * 100)
+      });
     }
-
-    await batch.commit();
 
     await snap.ref.update({
       status: "ready",
+      progress: 100,
       processedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
 
   } catch (error: any) {
-    console.error("Error:", error);
+    console.error("Indexing Error:", error);
     await snap.ref.update({
       status: "error",
       errorMessage: error.message

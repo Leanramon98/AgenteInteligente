@@ -24,7 +24,8 @@ import {
   Sparkles,
   Search,
   BookOpen,
-  ArrowRight
+  ArrowRight,
+  Wand2
 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
 import { cn } from "@/lib/utils";
@@ -59,6 +60,7 @@ export function KnowledgeBase({ agentId }: { agentId: string }) {
   const [newQuestion, setNewQuestion] = useState("");
   const [newAnswer, setNewAnswer] = useState("");
   const [savingFaq, setSavingFaq] = useState(false);
+  const [generatingAi, setGeneratingAi] = useState(false);
 
   useEffect(() => {
     if (!agentId || !db) return;
@@ -113,6 +115,7 @@ export function KnowledgeBase({ agentId }: { agentId: string }) {
           try {
             await addDoc(collection(db, "kb_documents"), {
               agentId,
+              userId: user.uid,
               name: file.name,
               type: file.name.split('.').pop()?.toLowerCase() || 'txt',
               storagePath,
@@ -141,7 +144,8 @@ export function KnowledgeBase({ agentId }: { agentId: string }) {
       'application/pdf': ['.pdf'],
       'text/plain': ['.txt'],
     },
-    multiple: false
+    multiple: false,
+    maxSize: 100 * 1024 * 1024 // 100MB
   });
 
   const handleDeleteDoc = async (docObj: Document) => {
@@ -193,6 +197,29 @@ export function KnowledgeBase({ agentId }: { agentId: string }) {
       await deleteDoc(doc(db, "kb_faqs", id));
     } catch (error) {
       console.error("Error deleting FAQ:", error);
+    }
+  };
+
+  const generateWithAi = async () => {
+    if (!agentId || !user) return;
+    setGeneratingAi(true);
+    try {
+      const res = await fetch("/api/ai/generate-faq", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId })
+      });
+      const data = await res.json();
+      if (data.faqs && data.faqs.length > 0) {
+        setNewQuestion(data.faqs[0].question);
+        setNewAnswer(data.faqs[0].answer);
+      } else if (data.error) {
+        alert(data.error);
+      }
+    } catch (e: any) {
+       alert("Error al generar sugerencias: " + e.message);
+    } finally {
+      setGeneratingAi(false);
     }
   };
 
@@ -365,10 +392,22 @@ export function KnowledgeBase({ agentId }: { agentId: string }) {
                       required
                     />
                   </div>
-                  <Button type="submit" className="w-full h-14 rounded-2xl font-black uppercase tracking-widest text-xs shadow-lg shadow-primary/20 group" disabled={savingFaq}>
-                    {savingFaq ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />}
-                    Indexar Conocimiento
-                  </Button>
+                  <div className="flex gap-4">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      className="flex-1 h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] border-dashed border-primary/30 hover:border-primary/60"
+                      onClick={generateWithAi}
+                      disabled={generatingAi}
+                    >
+                      {generatingAi ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Wand2 className="mr-2 h-4 w-4 text-primary" />}
+                      Sugerir con AI
+                    </Button>
+                    <Button type="submit" className="flex-[2] h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 group" disabled={savingFaq}>
+                      {savingFaq ? <Loader2 className="animate-spin mr-2 h-4 w-4" /> : <Sparkles className="mr-2 h-4 w-4 group-hover:rotate-12 transition-transform" />}
+                      Indexar
+                    </Button>
+                  </div>
                 </CardContent>
               </form>
             </Card>
